@@ -1,0 +1,204 @@
+/ SUM OF ODDS
+    ORG 002
+    BSA WAIT_MESSAGE
+    BSA READ_INPUT / gets the input and converts from decimal ASCII digits to the hexidecimal equaivalent
+    BSA GET_ODDSUM
+    BSA PRINT_OUTPUT
+    HLT
+
+/OUTPUT whats on the AC 
+OUTP_AC, HEX 000
+    COF,SKO
+    BUN COF
+    OUT
+    BUN OUTP_AC I
+
+/INPUT whats on the IStream and add to AC
+INPT_AC, HEX 000
+    CIF,SKI
+        BUN CIF
+        INP
+        OUT
+        STA CHR
+        BUN INPT_AC I
+    CHR, HEX 000
+
+/prints n=[INPUT STREAM]
+WAIT_MESSAGE, HEX 000
+    CHAR_n, HEX 06E /n
+        LDA CHAR_n
+        BSA OUTP_AC
+    CHAR_eq, HEX 03D /=
+        LDA CHAR_eq
+        BSA OUTP_AC
+        CLA
+        BUN WAIT_MESSAGE I
+
+/converts ASCII input into hexidecimal equaivalent, stores in INPUT
+READ_INPUT, HEX 000 /starts the input parsing subroutine
+    Loop_RI, BSA INPT_AC /read INP register
+    ADD CAH              /convert ASCII -> HEX
+    ADD INPUT            /add with previous decimal digit
+    STA INPUT            
+    BSA STUPID_WAITING_ROOM /input flag takes too long to be activated
+    SKI                  / break loop if there are no more digits to read
+    BUN READ_INPUT I 
+    LDA INPUT
+    ADD INPUT / AC = INPUT*2 / since there are more digits, multiply current digits by 10
+    ADD INPUT / AC = INPUT*3
+    ADD INPUT / AC = INPUT*4
+    ADD INPUT / AC = INPUT*5
+    ADD INPUT / AC = INPUT*6
+    ADD INPUT / AC = INPUT*7
+    ADD INPUT / AC = INPUT*8
+    ADD INPUT / AC = INPUT*9
+    ADD INPUT / AC = INPUT*10
+    STA INPUT / INPUT <- AC = INPUT * 10
+    BUN Loop_RI /loop
+
+/ for handling delay between switching input flags
+STUPID_WAITING_ROOM, HEX 000
+    LDA DEC10  /to ensure DIG1000 <= 9
+    STA ITER
+LOP,ISZ ITER
+    BUN LOP
+    BUN STUPID_WAITING_ROOM I
+
+
+/calculates the sum of the first n numbers using a while loop
+GET_ODDSUM, HEX 000
+        LDA INPUT
+        SPA
+        BUN GET_ODDSUM I / handles case n=0
+        CMA / AC = (INPUT)'
+        INC / AC = 2's complement of INPUT
+        STA ITER / ITER <- becomes 2's complement on first pass
+        CLA
+        CMA / increment -1 twice to get 1
+    LOP2,INC / while (ITER < 0)
+        INC
+        STA DIG
+        ADD SUM
+        STA SUM / first pass sets sum = 0
+        LDA DIG
+        ISZ ITER / first pass converts ITER to 2's compliment
+        BUN LOP2
+        BUN GET_ODDSUM I /return to main execution line
+
+/prints SUM=[SUM as decimal]
+PRINT_OUTPUT, HEX 000
+    CHAR_semi, HEX 3B
+    CHAR_S, HEX 53
+    CHAR_U, HEX 55
+    CHAR_M, HEX 4D
+    CHAR_sp, HEX 20
+    LDA CHAR_semi
+    
+    BSA OUTP_AC
+    LDA CHAR_sp
+    BSA OUTP_AC
+    
+    LDA CHAR_S
+    BSA OUTP_AC
+    LDA CHAR_U
+    BSA OUTP_AC
+    LDA CHAR_M
+    BSA OUTP_AC
+    LDA CHAR_eq
+    BSA OUTP_AC / SUM=
+    BSA PRINT_DEC_SUM
+    BUN PRINT_OUTPUT I /return
+
+/converts hexidecimal into ASCII decimal digits
+PRINT_DEC_SUM, HEX 000
+    LDA CT  /to ensure DIG1000 <= 9
+    STA ITER
+    LDA SUM
+    STA DIG
+
+    /count 1000s
+    CT_1000, ADD DEC1000  /want to count the number of 1000s by subtracting 1000 until AC < 0
+        SPA             / if AC is positive after subtracting 1000, increment DIG1000
+        BUN PRINT_1000  /once AC<0, exit 1000 counting loop
+        STA DIG         / since AC>0, store it in DIG for counting 100
+        ISZ DIG1000     / increment number of thousands in answer
+        ISZ ITER        /to ensure DIG1000 <= 9
+        BUN CT_1000       /end of 1000 counting loop 
+        BUN PRINT_1000  /after 9 1000s are counted, exit counting loop
+    PRINT_1000, HEX 000
+        LDA DIG1000
+        BSA OUTP_AC
+
+    /count 100s 
+        LDA CT  /to ensure DIG100 <= 9
+        STA ITER
+        LDA DIG
+    CT_100, ADD DEC100  /want to count the number of 1000s by subtracting 100 until AC < 0
+        SPA             / if AC is positive after subtracting 100, increment DIG100
+        BUN PRINT_100  /once AC<0, exit 100 counting loop
+        STA DIG         / since AC>0, store it in DIG for counting 100
+        ISZ DIG100     / increment number of thousands in answer
+        ISZ ITER        /to ensure DIG100 <= 9
+        BUN CT_100       /end of 100 counting loop 
+        BUN PRINT_100  /after 9 100s are counted, exit counting loop
+    PRINT_100, HEX 000
+        LDA DIG100
+        BSA OUTP_AC
+
+    /count 10s 
+        LDA CT  /to ensure DIG10 <= 9
+        STA ITER
+        LDA DIG
+    CT_10, ADD DEC10  /want to count the number of 100s by subtracting 10 until AC < 0
+        SPA             / if AC is positive after subtracting 10, increment DIG10
+        BUN PRINT_10  /once AC<0, exit 10 counting loop
+        STA DIG         / since AC>0, store it in DIG for counting 10
+        ISZ DIG10     / increment number of thousands in answer
+        ISZ ITER        /to ensure DIG10 <= 9
+        BUN CT_10       /end of 10 counting loop 
+        BUN PRINT_10  /after 9 10s are counted, exit counting loop
+    PRINT_10, HEX 000
+        LDA DIG10
+        BSA OUTP_AC
+
+    /count 1s 
+        LDA CT  /to ensure DIG1 <= 9
+        STA ITER
+        LDA DIG
+    CT_1, ADD DEC1  /want to count the number of 10s by subtracting 1 until AC < 0
+        SPA             / if AC is positive after subtracting 1, increment DIG1
+        BUN PRINT_1  /once AC<0, exit 1 counting loop
+        STA DIG         / since AC>0, store it in DIG for counting 1
+        ISZ DIG1     / increment number of thousands in answer
+        ISZ ITER        /to ensure DIG1 <= 9
+        BUN CT_1       /end of 1 counting loop 
+        BUN PRINT_1  /after 9 1s are counted, exit counting loop
+    PRINT_1, HEX 000
+        LDA DIG1
+        BSA OUTP_AC
+    BUN PRINT_DEC_SUM I / return to main
+
+
+/used for additions and subtractions
+CT, DEC -9    
+DEC1, DEC -1
+DEC10, DEC -10
+DEC100, DEC -100
+DEC1000, DEC -1000
+DIG1, HEX 30   /set to 0 in ASCII
+DIG10, HEX 30  /set to 0 in ASCII
+DIG100, HEX 30 /set to 0 in ASCII
+DIG1000, HEX 30/set to 0 in AScII
+
+INPUT, HEX 0    interprets the ASCII input to hexidecimal
+DIG, HEX 0      / used to store temporary digits
+CAH, HEX -30    / conversion factor for ASCII numeric symbols to hexidecimal numbers
+CHA, HEX 30     / conversion factor for hexidecimal to ASCII numbers
+ITER, HEX 0     / for iterating
+SUM, HEX 0      / for containing the sum of output
+
+END
+
+that was painful
+
+
